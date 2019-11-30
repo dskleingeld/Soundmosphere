@@ -14,7 +14,7 @@ import webrtcvad
 from halo import Halo
 from scipy import signal
 
-logging.basicConfig(level=logging.WARNING)
+#logging.basicConfig(level=logging.WARNING)
 
 BEAM_WIDTH = 500
 DEFAULT_SAMPLE_RATE = 16000
@@ -100,7 +100,7 @@ class Audio(object):
     frame_duration_ms = property(lambda self: 1000 * self.block_size // self.sample_rate)
 
     def write_wav(self, filename, data):
-        logging.info("write wav %s", filename)
+        #logging.info("write wav %s", filename)
         wf = wave.open(filename, 'wb')
         wf.setnchannels(self.CHANNELS)
         # wf.setsampwidth(self.pa.get_sample_size(FORMAT))
@@ -165,9 +165,11 @@ class VADAudio(Audio):
                     yield None
                     ring_buffer.clear()
 
+from util import noalsaerr
 def transcripe(transciption_tx, shutdown_rx):
 
-    p = pyaudio.PyAudio()
+    with noalsaerr():
+        p = pyaudio.PyAudio()
 
     # Load DeepSpeech model
     model_dir = "data/deepspeech-0.5.1-models"
@@ -182,12 +184,12 @@ def transcripe(transciption_tx, shutdown_rx):
     audio_device = None #None takes default pyaudio device
     rate = DEFAULT_SAMPLE_RATE
 
-    logging.info("ARGS.model: %s", model_dir)
-    logging.info("ARGS.alphabet: %s", alphabet)
+    #logging.info("ARGS.model: %s", model_dir)
+    #logging.info("ARGS.alphabet: %s", alphabet)
     model = deepspeech.Model(model, N_FEATURES, N_CONTEXT, alphabet, BEAM_WIDTH)
     if lm and trie:
-        logging.info("ARGS.lm: %s", lm)
-        logging.info("ARGS.trie: %s", trie)
+        #logging.info("ARGS.lm: %s", lm)
+        #logging.info("ARGS.trie: %s", trie)
         model.enableDecoderWithLM(alphabet, lm, trie, LM_ALPHA, LM_BETA)
 
     # Start audio with VAD
@@ -206,10 +208,10 @@ def transcripe(transciption_tx, shutdown_rx):
             break
 
         if frame is not None:
-            logging.debug("streaming frame")
+            #logging.debug("streaming frame")
             model.feedAudioContent(stream_context, np.frombuffer(frame, np.int16))
         else:
-            logging.debug("end utterence")
+            #logging.debug("end utterence")
             text = model.finishStream(stream_context)
             transciption_tx.send(text)
             stream_context = model.setupStream()
