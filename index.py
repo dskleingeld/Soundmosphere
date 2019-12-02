@@ -18,8 +18,7 @@ def add_unindexed(conn):
     #for glob
     for dirpath in c.execute('SELECT * FROM music_dirs'):
         for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav)"):
-            print(filepath)
-            c.execute("INSERT OR IGNORE INTO unindexed (path) VALUES ('"+filepath+"')")
+            c.execute("INSERT OR IGNORE INTO to_index (path) VALUES ('"+filepath+"')")
 
 #must be ran before ANY threat touches the database
 def init_db():
@@ -28,31 +27,42 @@ def init_db():
         c = conn.cursor()
         #create the needed tables
         c.execute('CREATE TABLE music_dirs (dir text)')
-        c.execute('CREATE TABLE unindexed (path text)')
+        c.execute('CREATE TABLE to_index (path text)')
+        c.execute('''CREATE TABLE indexed 
+        (path text, some_numb real, another_numb real)''')
         conn.commit()
         conn.close()
 
-def keep_updated(new_file_rx, shutdown_rx):
+def keep_updated(new_path_rx, shutdown_rx):
     #find new music files to index
     conn = sqlite3.connect(db_path)
-    add_unindexed(conn)
+    while True:
+        add_unindexed(conn)
+        index_unindexed(conn, shutdown_rx)
 
+        while True: 
+            if shutdown_rx.poll():
+                return
+            if not new_path_rx.poll(timeout=0.1):
+                continue
+
+            new_path = new_path_rx.recv()
+            add_music_dir(new_path)
+
+def index_unindexed(conn, shutdown_rx):
     c = conn.cursor()
-    for row in c.execute("SELECT * FROM unindexed"):
+    for row in c.execute("SELECT * FROM to_index"):
         if shutdown_rx.poll():
             return #stop if we need to quit
         
-        res = index(row) #if index succeeded, remove from db
-        if res == "":
-            c.execute("DELETE * FROM unindexed WHERE path = '"+row+"'")
+        path = row[0]
+        res = index_file(path) #if index succeeded, remove from db
+        if res != None:
+            c.execute("DELETE FROM to_index WHERE path='"+path+"'")
+            q = "INSERT INTO indexed VALUES ('"+path+"',"+str(res[0])+","+"NULL"+")"
+            c.execute(q)
 
-    while not shutdown_rx.poll():
-        if not new_file_rx.poll(timeout=0.1):
-            continue
-
-        new_path = new_file_rx.recv()
-        print(new_path)
-
-def index(path: str):
+def index_file(path: str):
     print("add code here to categorises/analyses a file at given path")
-    return "" #return empty string indecates failure
+    #return None
+    return (0.1, 0)

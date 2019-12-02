@@ -16,12 +16,12 @@ if __name__ == '__main__':
     index.init_db() #setup the db
 
     #temporary test code
-    index.add_music_dir("/home/kleingeld/Music")
+    #index.add_music_dir("/home/kleingeld/Music")
     #end test
 
-    (new_file_rx, new_file_tx) = Pipe(duplex=False)
+    (new_path_rx, new_file_tx) = Pipe(duplex=False)
     (shutdown1_rx, shutdown1_tx) = Pipe(duplex=False)
-    index_proc = Process(target=index.keep_updated, args=(new_file_rx, shutdown1_rx))
+    index_proc = Process(target=index.keep_updated, args=(new_path_rx, shutdown1_rx))
     index_proc.start()
 
     # (transcribe_rx, transcribe_tx) = Pipe(duplex=False)
