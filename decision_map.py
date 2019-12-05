@@ -3,6 +3,7 @@ import threading
 from text_analysis import analyseText
 import sqlite3
 
+import random
 import spacy
 nlp = spacy.load("data/en_core_web_sm")
 
@@ -27,9 +28,17 @@ def analyse(rx, playlist_changes):
 
         energy, stress = analyseText(recent_text)
 
-        #for row in c.execute("SELECT path FROM features WHERE energy < "+str(energy+x)+" AND energy > "+str(energy-x)+" AND stress < "+str(stress+x)+" AND stress > "+str(stress-x))):
-        for row in c.execute("SELECT path FROM features ORDER BY ABS(energy-"+str(energy)+") ASC LIMIT 5"):
-            print(row)
+        nr = int(random.random()*5)
+        nr = 0
+        i = 0
+        paths = list(c.execute("SELECT path FROM features ORDER BY ABS(energy-"
+            +str(energy)+") ASC LIMIT 5"))
+
+          if i == nr: 
+            print(path)
+          i += 1
+
+
     print("stopped analysis")
 
 def linguistic_analysis(recent_text):
