@@ -22,6 +22,7 @@ def add_unindexed(conn):
     for dirpath in c.execute('SELECT dir FROM music_dirs'):
         for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav)"):
             c.execute("INSERT OR IGNORE INTO to_index (path) VALUES ('"+filepath+"')")
+    conn.commit()
 
 #must be ran before ANY threat touches the database
 def init_db():
@@ -45,12 +46,12 @@ def keep_updated(new_path_rx, shutdown_rx):
     conn = sqlite3.connect(db_path)
     #must normalize as we might have been
     #stopped mid normalization
-    finalise_index(conn)
 
     while True:
         add_unindexed(conn)
         index_unindexed(conn, shutdown_rx)
         finalise_index(conn) #TODO opt: dont do this every time
+        print("hoho")
 
         while True: 
             if shutdown_rx.poll():
@@ -63,17 +64,23 @@ def keep_updated(new_path_rx, shutdown_rx):
 
 def index_unindexed(conn, shutdown_rx):
     c = conn.cursor()
-    for path in c.execute("SELECT path FROM to_index"):
+    unindexed = []
+    for path in c.execute("SELECT * FROM to_index"):
+        unindexed += path
+
+    for path in unindexed:
         if shutdown_rx.poll():
             return #stop if we need to quit
-        
-        res = index_file(path[0]) #if index succeeded, remove from db
+
+        res = index_file(path) #if index succeeded, remove from db
         if res != None:
-            c.execute("DELETE FROM to_index WHERE path='"+path[0]+"'")
+            c.execute("DELETE FROM to_index WHERE path='"+path+"';")
             q = ("INSERT INTO features "
             + "(path, tempo, beats, rms, cent, rolloff, zcr, low, entropy) "
-            + "VALUES('"+path[0]+"',"+str(res)+")")
+            + "VALUES ('"+path+"',"+str(res)+")")
             c.execute(q)
+    conn.commit()
+
 
 def index_file(path: str):
     #get_web_meta(path) #can not be used
@@ -100,4 +107,16 @@ def finalise_index(conn):
         (energy, stress) = features.classify()
         
         c.execute("UPDATE features SET stress= {0:f}, energy={1:f} WHERE path='{2}'".format(stress, energy, path))
-    
+    conn.commit()
+
+def finish_previous_indexing():
+    conn = sqlite3.connect(db_path)
+    finalise_index(conn)
+
+def print_database():
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    print("printing_database")
+    for row in c.execute("SELECT * FROM features"):
+        print(row)
