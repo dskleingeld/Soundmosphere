@@ -29,5 +29,5 @@ def analyseText(text):
   elif energytotal<-1: energytotal=-1
   if stresstotal>1: stresstotal=1
   elif stresstotal<-1: stresstotal=-1
-  
+
   return energytotal, stresstotal

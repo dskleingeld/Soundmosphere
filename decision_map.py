@@ -16,7 +16,6 @@ def analyse(rx, playlist_changes):
             continue
         
         new_text = rx.recv()
-        print(new_text)
         recent_words = recent_words+new_text.split(" ")
         recent_words = recent_words[-MAX_RECENT_WORDS:]
         recent_text = " ".join(recent_words)
@@ -25,9 +24,13 @@ def analyse(rx, playlist_changes):
 
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
-        for row in c.execute("SELECT energy FROM features ORDER BY energy ASC"):
-          for i in range(len(row)):
-            while row[i] < energy: i += 1
-            print (row[i-1], row[i], row[i+1]) 
+
+        for row in c.execute("SELECT path FROM features"):
+          print(row)
+        #for row in c.execute("SELECT path FROM features WHERE energy < "+str(energy+x)+" AND energy > "+str(energy-x)+" AND stress < "+str(stress+x)+" AND stress > "+str(stress-x))):
+        #for row in c.execute("SELECT path FROM features ORDER BY ABS(energy-"+str(energy)+") ASC LIMIT 5"):
+         # print(path)
+        for row in c.execute("SELECT path FROM features WHERE energy < 0.5 AND stress < 0.5"):
+          print(row)
 
     print("stopped analysis")
