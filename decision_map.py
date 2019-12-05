@@ -2,12 +2,14 @@ from queue import Queue as tQueue
 import threading
 from text_analysis import analyseText
 import sqlite3
+from music_player import play, Order, OrderType
 
 import random
 import spacy
 nlp = spacy.load("data/en_core_web_sm")
 
 MAX_RECENT_WORDS = 90
+MIN_ENG_DIFF = 0.2
 
 def analyse(rx, playlist_changes):
     t = threading.currentThread()
@@ -16,6 +18,8 @@ def analyse(rx, playlist_changes):
     db_path = "database.sqlite"
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
+
+    energylast = -1
 
     while getattr(t, "keep_running", True):
         if not rx.poll(timeout=0.1):
@@ -27,17 +31,18 @@ def analyse(rx, playlist_changes):
         recent_text = " ".join(recent_words)
 
         energy, stress = analyseText(recent_text)
+        print("energy: ", energy)
+        print(abs(energylast-energy))
 
-        nr = int(random.random()*5)
-        nr = 0
-        i = 0
-        paths = list(c.execute("SELECT path FROM features ORDER BY ABS(energy-"
-            +str(energy)+") ASC LIMIT 5"))
+        if abs(energylast - energy) > MIN_ENG_DIFF:
+          paths = list(c.execute("SELECT path FROM features ORDER BY ABS(energy-"
+              +str(energy)+") ASC LIMIT 5"))
+          path = paths[int(random.random()*len(paths))]
+          order = Order()
+          order.path = path[0]
+          playlist_changes.put(order)
 
-          if i == nr: 
-            print(path)
-          i += 1
-
+          energylast = energy
 
     print("stopped analysis")
 
