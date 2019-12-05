@@ -47,13 +47,13 @@ def play(playlist_changes):
             if player: #already another song playing
               crossfade = True
               for i in range(10): #turn down volume
-                call(["amixer", "-D", "pulse", "sset", "Master", "10%-"])
+                call(["amixer", "-D", "pulse", "-q", "sset", "Master", "10%-"])
                 time.sleep(0.05)                
               player.stop() #stop playing old song
             player = _play_with_simpleaudio(audio) #start new song
             if crossfade:
               for i in range(10): #turn up volume
-                call(["amixer", "-D", "pulse", "sset", "Master", "10%+"])
+                call(["amixer", "-D", "pulse", "-q", "sset", "Master", "10%+"])
                 time.sleep(0.05)
           else:
             time.sleep(3)
@@ -64,9 +64,9 @@ def play(playlist_changes):
 
         if (changes.orderType == OrderType.VOLUME_CHANGE):
           if (changes.volume == 1):
-            call(["amixer", "-D", "pulse", "sset", "Master", "5%+"])
+            call(["amixer", "-D", "pulse", "-q", "sset", "Master", "5%+"])
           else:
-            call(["amixer", "-D", "pulse", "sset", "Master", "5%-"])
+            call(["amixer", "-D", "pulse", "-q", "sset", "Master", "5%-"])
           
 
     print("stopped music playback")
