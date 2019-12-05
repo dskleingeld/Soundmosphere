@@ -51,7 +51,6 @@ def keep_updated(new_path_rx, shutdown_rx):
         add_unindexed(conn)
         index_unindexed(conn, shutdown_rx)
         finalise_index(conn) #TODO opt: dont do this every time
-        print("hoho")
 
         while True: 
             if shutdown_rx.poll():
