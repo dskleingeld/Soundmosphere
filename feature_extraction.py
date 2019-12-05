@@ -10,6 +10,28 @@ class Features:
     zcr = 0 #zcr
     low = 0 #lowenergy
     entropy = 0 #entropy
+    
+    def __init__(self, str_list=[0,0,0,0,0,0,0,0,0,0,0]):
+        self.tempo = str_list[1]
+        self.beats = str_list[2]
+        self.rms = str_list[3]
+        self.cent = str_list[4]
+        self.rolloff = str_list[5]
+        self.zcr = str_list[6]
+        self.low = str_list[7]
+        self.entropy = str_list[8]
+
+    def __str__(self):
+        string = "{0:f},{1:f},{2:f},{3:f},{4:f},{5:f},{6:f},{7:f}".format(
+            self.tempo,
+            self.beats,
+            self.rms,
+            self.cent,
+            self.rolloff,
+            self.zcr,
+            self.low,
+            self.entropy)
+        return string
 
     def normalize(self, min, max):
         self.tempo = (self.tempo-min.tempo)/(max.tempo-min.tempo)
@@ -22,7 +44,7 @@ class Features:
         self.entropy = (self.entropy-min.entropy)/(max.entropy-min.entropy)
 
     def classify(self):        
-        energy = 0.8*self.rmse + (1-self.low)*0.2
+        energy = 0.8*self.rms + (1-self.low)*0.2
         timbre = 0.2*self.zcr + 0.4*self.cent+ 0.3*self.rolloff + 0.1*self.entropy
         rhythm = 0.4*self.beats + 0.6*self.tempo
 
@@ -41,14 +63,30 @@ class Features:
         
         return (energy, stress)
 
+
+def update_bounds(current: Features, mini: Features, maxi: Features):
+
+    for varname in vars(current).keys():
+        should_renorm = False
+
+        var = vars(current)[varname]
+        maxvar = vars(maxi)[varname]
+        minvar = vars(mini)[varname]
+
+        if var > maxvar:
+            maxvar = var
+            should_renorm = True
+        if var < minvar:
+            minvar = var
+            should_renorm = True
+    
+    return should_renorm
+
 def norm(var, varmin, varmax):
     return (var-varmin)/(varmax-varmin)
 
-def extract_features(songname):
-    features = Features()
-   
-    y, sr = librosa.load(songname, duration=60)
-    #TODO check if song already in database
+def extract_features(path: str):
+    y, sr = librosa.load(path, duration=60)
 
     # Extracting Features
     tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
@@ -68,6 +106,7 @@ def extract_features(songname):
     pitch = librosa.core.piptrack(y=y, sr=sr)
     
     # Add Features to class
+    features = Features()
     features.tempo = tempo  # tempo (beats per minute), middle = 120 bpm
     features.beats = np.average(beats)
     features.rms = np.mean(rmse)

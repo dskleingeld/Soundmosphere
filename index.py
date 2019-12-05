@@ -1,6 +1,9 @@
 import os
 import sqlite3
 import util
+import feature_extraction as fe
+
+#from meta_from_web_search import get_web_meta
 
 db_path = "database.sqlite"
 
@@ -16,7 +19,7 @@ def add_unindexed(conn):
     c = conn.cursor()
 
     #for glob
-    for dirpath in c.execute('SELECT * FROM music_dirs'):
+    for dirpath in c.execute('SELECT dir FROM music_dirs'):
         for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav)"):
             c.execute("INSERT OR IGNORE INTO to_index (path) VALUES ('"+filepath+"')")
 
@@ -26,19 +29,28 @@ def init_db():
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
         #create the needed tables
-        c.execute('CREATE TABLE music_dirs (dir text)')
-        c.execute('CREATE TABLE to_index (path text)')
-        c.execute('''CREATE TABLE indexed 
-        (path text, some_numb real, another_numb real)''')
+        c.execute('''CREATE TABLE music_dirs (dir text)''')
+        c.execute('''CREATE TABLE to_index (path text)''')
+        c.execute('''CREATE TABLE features (path text, 
+            tempo real, beats real, rms real, cent real,
+            rolloff real, zcr real, low real, entropy real,
+
+            stress real, energy real
+        )''')
         conn.commit()
         conn.close()
 
 def keep_updated(new_path_rx, shutdown_rx):
     #find new music files to index
     conn = sqlite3.connect(db_path)
+    #must normalize as we might have been
+    #stopped mid normalization
+    finalise_index(conn)
+
     while True:
         add_unindexed(conn)
         index_unindexed(conn, shutdown_rx)
+        finalise_index(conn) #TODO opt: dont do this every time
 
         while True: 
             if shutdown_rx.poll():
@@ -51,18 +63,41 @@ def keep_updated(new_path_rx, shutdown_rx):
 
 def index_unindexed(conn, shutdown_rx):
     c = conn.cursor()
-    for row in c.execute("SELECT * FROM to_index"):
+    for path in c.execute("SELECT path FROM to_index"):
         if shutdown_rx.poll():
             return #stop if we need to quit
         
-        path = row[0]
-        res = index_file(path) #if index succeeded, remove from db
+        res = index_file(path[0]) #if index succeeded, remove from db
         if res != None:
-            c.execute("DELETE FROM to_index WHERE path='"+path+"'")
-            q = "INSERT INTO indexed VALUES ('"+path+"',"+str(res[0])+","+"NULL"+")"
+            c.execute("DELETE FROM to_index WHERE path='"+path[0]+"'")
+            q = ("INSERT INTO features "
+            + "(path, tempo, beats, rms, cent, rolloff, zcr, low, entropy) "
+            + "VALUES('"+path[0]+"',"+str(res)+")")
             c.execute(q)
 
 def index_file(path: str):
-    print("add code here to categorises/analyses a file at given path")
-    #return None
-    return (0.1, 0)
+    #get_web_meta(path) #can not be used
+    features = fe.extract_features(path)
+    #features = None
+    
+    return features
+
+#iterate through database and set "energy" and "stress" level
+def finalise_index(conn):
+    c = conn.cursor()
+    mini = fe.Features(str_list=[1e6,1e6,1e6,1e6,1e6,1e6,1e6,1e6,1e6])
+    maxi = fe.Features(str_list=[-1e6,-1e6,-1e6,-1e6,-1e6,-1e6,-1e6,-1e6,-1e6])
+    
+    #find minimum and maximum values for each feature
+    for row in c.execute("SELECT path, tempo, beats, rms, cent, rolloff, zcr, low, entropy FROM features"):
+        path = row[0]
+        features = fe.Features(str_list=row)
+        fe.update_bounds(features, mini, maxi)
+
+    for row in c.execute("SELECT path, tempo, beats, rms, cent, rolloff, zcr, low, entropy FROM features"):
+        path = row[0]
+        features = fe.Features(str_list=row)
+        (energy, stress) = features.classify()
+        
+        c.execute("UPDATE features SET stress= {0:f}, energy={1:f} WHERE path='{2}'".format(stress, energy, path))
+    
