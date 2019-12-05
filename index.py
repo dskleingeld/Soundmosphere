@@ -19,8 +19,8 @@ def add_unindexed(conn):
     c = conn.cursor()
 
     #for glob
-    for dirpath in c.execute('SELECT dir FROM music_dirs'):
-        for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav)"):
+    for dirpath in c.execute('SELECT dir FROM music_dirs'): #different file types still to be tested
+        for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav|ogg|aac|flac)"):
             c.execute("INSERT OR IGNORE INTO to_index (path) VALUES ('"+filepath+"')")
     conn.commit()
 
