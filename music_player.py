@@ -43,6 +43,7 @@ def play(playlist_changes):
         #do something with the changes
         if (changes.orderType == OrderType.SONG_CHANGE):
           if (changes.songChangeType == SongChangeType.FAST):
+            print(changes.path)
             audio = AudioSegment.from_file(changes.path)
             if player: #already another song playing
               crossfade = True
@@ -53,7 +54,7 @@ def play(playlist_changes):
             player = _play_with_simpleaudio(audio) #start new song
             if crossfade:
               for i in range(10): #turn up volume
-                call(["amixer", "-D", "pulse", "-q", "sset", "Master", "10%+"])
+                call(["amixer", "-D", "pulse", "-q", "sset", "Master", "5%+"])
                 time.sleep(0.05)
           else:
             time.sleep(3)
