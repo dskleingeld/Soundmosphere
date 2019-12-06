@@ -83,9 +83,6 @@ def update_bounds(current: Features, mini: Features, maxi: Features):
     
     return should_renorm
 
-def norm(var, varmin, varmax):
-    return (var-varmin)/(varmax-varmin)
-
 def extract_features(path: str):
 
     with warnings.catch_warnings():

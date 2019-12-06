@@ -11,7 +11,9 @@ db_path = "database.sqlite"
 def add_music_dir(dirpath: str):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO music_dirs (dir) VALUES ({})".format(quote_identifier(dirpath)))
+    q = "INSERT OR IGNORE INTO music_dirs (dir) VALUES ({})".format(quote_identifier(dirpath))
+    print(q)
+    c.execute(q)
     conn.commit()
     conn.close()
 
@@ -24,7 +26,8 @@ def add_unindexed(conn):
         for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav|ogg|aac|flac|opus|mp4)"):
             q = "SELECT EXISTS(SELECT 1 FROM features WHERE path = {});".format(quote_identifier(filepath))
             c.execute(q)
-            if c.fetchone() == 0:
+            res = c.fetchone()
+            if res[0] == 0:
                 q = "INSERT OR IGNORE INTO to_index (path) VALUES ({})".format(quote_identifier(filepath))
                 c.execute(q)
     conn.commit()
@@ -47,10 +50,7 @@ def init_db():
         conn.close()
 
 def keep_updated(new_path_rx, shutdown_rx):
-    #find new music files to index
     conn = sqlite3.connect(db_path)
-    #must normalize as we might have been
-    #stopped mid normalization
 
     while True:
         add_unindexed(conn)
@@ -78,17 +78,15 @@ def index_unindexed(conn, shutdown_rx):
             return #stop if we need to quit
 
         res = index_file(path) #if index succeeded, remove from db
-        if res != None:
-
-            q = "DELETE FROM to_index WHERE path = {};".format(quote_identifier(path))
-            c.execute(q)
-            
-            q = ("INSERT OR IGNORE INTO features "
-            + "(path, tempo, beats, rms, cent, rolloff, zcr, low, entropy) "
-            + "VALUES ({},{});".format(quote_identifier(path),res))
-            c.execute(q)
-
+        q = "DELETE FROM to_index WHERE path = {};".format(quote_identifier(path))
+        c.execute(q)
+        
+        q = ("INSERT OR IGNORE INTO features "
+        + "(path, tempo, beats, rms, cent, rolloff, zcr, low, entropy) "
+        + "VALUES ({},{});".format(quote_identifier(path),res))
+        c.execute(q)
         conn.commit()
+
         numb_unindexed -= 1
         print("indexing files in background, {} left".format(numb_unindexed))
 
@@ -103,24 +101,31 @@ def index_file(path: str):
 #iterate through database and set "energy" and "stress" level
 def finalise_index(conn):
     c = conn.cursor()
-    mini = fe.Features(str_list=[1e6,1e6,1e6,1e6,1e6,1e6,1e6,1e6,1e6])
-    maxi = fe.Features(str_list=[-1e6,-1e6,-1e6,-1e6,-1e6,-1e6,-1e6,-1e6,-1e6])
+    min_eng = 1e6
+    min_stress = 1e6
+    max_eng = -1e6
+    max_stress = -1e6
     
-    #find minimum and maximum values for each feature
-    for row in c.execute("SELECT path, tempo, beats, rms, cent, rolloff, zcr, low, entropy FROM features"):
-        path = row[0]
-        features = fe.Features(str_list=row)
-        fe.update_bounds(features, mini, maxi)
-
     to_update = []
     for row in c.execute("SELECT path, tempo, beats, rms, cent, rolloff, zcr, low, entropy FROM features"):
         path = row[0]
         features = fe.Features(str_list=row)
-        features.normalize(mini,maxi)
         (energy, stress) = features.classify()
+        
+        if energy > max_eng:
+            max_eng = energy
+        if energy < min_eng:
+            min_eng = energy
+        if stress > max_stress:
+            max_stress = stress
+        if stress < min_stress:
+            min_stress = stress
+
         to_update.append((stress, energy, path))
         
     for (stress, energy, path) in to_update:
+        energy = norm(energy, min_eng, max_eng)
+        stress = norm(stress, min_stress, max_stress, )
         q = "UPDATE features SET stress= {0:f}, energy={1:f} WHERE path={2}".format(stress, energy, quote_identifier(path))
         c.execute(q)
     conn.commit()
@@ -159,3 +164,6 @@ def print_column(column: str):
     print("printing column: {}".format(column))
     for row in c.execute("SELECT {} FROM features".format(column)):
         print(row)
+
+def norm(var, varmin, varmax):
+    return (var-varmin)/(varmax-varmin)
