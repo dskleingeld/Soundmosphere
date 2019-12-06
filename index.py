@@ -20,7 +20,7 @@ def add_unindexed(conn):
 
     #for glob
     for dirpath in c.execute('SELECT dir FROM music_dirs'): #different file types still to be tested
-        for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav|ogg|aac|flac)"):
+        for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav|ogg|aac|flac|opus|mp4)"):
             c.execute("INSERT OR IGNORE INTO to_index (path) VALUES ('"+filepath+"')")
     conn.commit()
 
@@ -74,7 +74,7 @@ def index_unindexed(conn, shutdown_rx):
         res = index_file(path) #if index succeeded, remove from db
         if res != None:
             c.execute("DELETE FROM to_index WHERE path='"+path+"';")
-            q = ("INSERT INTO features "
+            q = ("INSERT OR IGNORE INTO features "
             + "(path, tempo, beats, rms, cent, rolloff, zcr, low, entropy) "
             + "VALUES ('"+path+"',"+str(res)+")")
             c.execute(q)

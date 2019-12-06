@@ -27,6 +27,7 @@ def analyse(rx, playlist_changes):
 
         energy, stress = analyseText(recent_text)
 
+
         #for row in c.execute("SELECT path FROM features WHERE energy < "+str(energy+x)+" AND energy > "+str(energy-x)+" AND stress < "+str(stress+x)+" AND stress > "+str(stress-x))):
         for row in c.execute("SELECT path FROM features ORDER BY ABS(energy-"+str(energy)+") ASC LIMIT 5"):
             print(row)
