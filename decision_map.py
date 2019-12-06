@@ -9,7 +9,9 @@ import spacy
 nlp = spacy.load("data/en_core_web_sm")
 
 MAX_RECENT_WORDS = 90
-MIN_ENG_DIFF = 0.2
+MIN_ENG_DIFF = 0.1
+MIN_STRESS_DIFF = 0.1
+LIMIT = 3
 
 def analyse(rx, playlist_changes):
     t = threading.currentThread()
@@ -20,6 +22,8 @@ def analyse(rx, playlist_changes):
     c = conn.cursor()
 
     energylast = -1
+    stresslast = -1
+    pathlast = ""
 
     while getattr(t, "keep_running", True):
         if not rx.poll(timeout=0.1):
@@ -29,20 +33,33 @@ def analyse(rx, playlist_changes):
         recent_words = recent_words+new_text.split(" ")
         recent_words = recent_words[-MAX_RECENT_WORDS:]
         recent_text = " ".join(recent_words)
+        print(new_text)
 
         energy, stress = analyseText(recent_text)
         print("energy: ", energy)
         print(abs(energylast-energy))
 
-        if abs(energylast - energy) > MIN_ENG_DIFF:
-          paths = list(c.execute("SELECT path FROM features ORDER BY ABS(energy-"
-              +str(energy)+") ASC LIMIT 5"))
-          path = paths[int(random.random()*len(paths))]
-          order = Order()
-          order.path = path[0]
-          playlist_changes.put(order)
+        for row in c.execute("SELECT * FROM features"):
+          print(row)
 
-          energylast = energy
+        if (abs(energylast - energy) > MIN_ENG_DIFF or abs(stresslast - stress) > MIN_STRESS_DIFF):
+          q = "SELECT path FROM features ORDER BY ABS(energy+{})+ABS(stress+{}) ASC LIMIT {};".format(energy,stress,LIMIT)   
+          print(q)    
+          paths = list(c.execute(q))
+          rand = int(random.random()*len(paths))
+          print(rand)
+          print(paths)
+          path = paths[rand]
+          if (pathlast != path):
+            order = Order()
+            order.path = path[0]
+            playlist_changes.put(order)
+
+            energylast = energy
+            stresslast = stress
+            pathlast = path
+          
+          time.sleep(5)
 
     print("stopped analysis")
 
