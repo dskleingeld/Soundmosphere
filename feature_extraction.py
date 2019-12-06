@@ -37,14 +37,14 @@ class Features:
     def normalize(self, min, max):
         self.tempo = (self.tempo-min.tempo)/(max.tempo-min.tempo)
         self.beats = (self.beats-min.beats)/(max.tempo-min.beats)
-        self.rms = (self.rms-min.rms)/(max.rms-min.rms)
+        #self.rms = (self.rms-min.rms)/(max.rms-min.rms)
         self.cent = (self.cent-min.cent)/(max.cent-min.cent)
         self.rolloff = (self.rolloff-min.rolloff)/(max.rolloff-min.rolloff)
         self.zcr = (self.zcr-min.zcr)/(max.zcr-min.zcr)
-        self.low = (self.low-min.low)/(max.low-min.low)
+        #self.low = (self.low-min.low)/(max.low-min.low)
         self.entropy = (self.entropy-min.entropy)/(max.entropy-min.entropy)
 
-    def classify(self):        
+    def classify(self):
         energy = 0.8*self.rms + (1-self.low)*0.2
         timbre = 0.2*self.zcr + 0.4*self.cent+ 0.3*self.rolloff + 0.1*self.entropy
         rhythm = 0.4*self.beats + 0.6*self.tempo

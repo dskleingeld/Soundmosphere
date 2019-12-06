@@ -8,10 +8,10 @@ import codecs
 
 db_path = "database.sqlite"
 
-def add_music_dir(path: str):
+def add_music_dir(dirpath: str):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO music_dirs (dir) VALUES ('"+path+"')")
+    c.execute("INSERT OR IGNORE INTO music_dirs (dir) VALUES ({})".format(quote_identifier(dirpath)))
     conn.commit()
     conn.close()
 
@@ -112,12 +112,16 @@ def finalise_index(conn):
         features = fe.Features(str_list=row)
         fe.update_bounds(features, mini, maxi)
 
+    to_update = []
     for row in c.execute("SELECT path, tempo, beats, rms, cent, rolloff, zcr, low, entropy FROM features"):
         path = row[0]
         features = fe.Features(str_list=row)
+        features.normalize(mini,maxi)
         (energy, stress) = features.classify()
+        to_update.append((stress, energy, path))
         
-        q = "UPDATE features SET stress= {0:f}, energy={1:f} WHERE path='{2}'".format(stress, energy, quote_identifier(path))
+    for (stress, energy, path) in to_update:
+        q = "UPDATE features SET stress= {0:f}, energy={1:f} WHERE path={2}".format(stress, energy, quote_identifier(path))
         c.execute(q)
     conn.commit()
 
@@ -146,4 +150,12 @@ def print_database():
 
     print("printing_database")
     for row in c.execute("SELECT * FROM features"):
+        print(row)
+
+def print_column(column: str):
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    print("printing column: {}".format(column))
+    for row in c.execute("SELECT {} FROM features".format(column)):
         print(row)

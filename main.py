@@ -40,16 +40,17 @@ if __name__ == '__main__':
     #send test speech
     import time
     time.sleep(2)
+    index.print_column("energy")
     #index.print_database()
 
-
+    """
     transcribe_tx.send("There was an autumn-like mist white upon the ground and")
     transcribe_tx.send("the air was chill")
     transcribe_tx.send("but soon the sun rose red in the East and the mists vanished, and while the shadows were still long they were offgain. So they rode now for two more days, and all the while they saw nothing save grass and flowers and birds and scattered")
     transcribe_tx.send("trees, and occasionally small herds of red deer browsing or")
     transcribe_tx.send("sitting at noon in the shade.")
     transcribe_tx.send("Fire leaped from the dragon's jaws. He circled for a while high in the air above them lighting all the lake; the trees by the shores shone like copper and like blood with leaping shadows of dense black at their")
-    
+    """
 
     #start user interface
     user_interface.wait_for_enter()
