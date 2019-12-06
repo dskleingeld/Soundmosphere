@@ -2,6 +2,7 @@ import os
 import sqlite3
 import util
 import feature_extraction as fe
+import codecs
 
 #from meta_from_web_search import get_web_meta
 
@@ -21,7 +22,11 @@ def add_unindexed(conn):
     #for glob
     for dirpath in c.execute('SELECT dir FROM music_dirs'): #different file types still to be tested
         for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav|ogg|aac|flac|opus|mp4)"):
-            c.execute("INSERT OR IGNORE INTO to_index (path) VALUES ('"+filepath+"')")
+            q = "SELECT EXISTS(SELECT 1 FROM features WHERE path = {});".format(quote_identifier(filepath))
+            c.execute(q)
+            if c.fetchone() == 0:
+                q = "INSERT OR IGNORE INTO to_index (path) VALUES ({})".format(quote_identifier(filepath))
+                c.execute(q)
     conn.commit()
 
 #must be ran before ANY threat touches the database
@@ -30,9 +35,9 @@ def init_db():
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
         #create the needed tables
-        c.execute('''CREATE TABLE music_dirs (dir text)''')
-        c.execute('''CREATE TABLE to_index (path text)''')
-        c.execute('''CREATE TABLE features (path text, 
+        c.execute('''CREATE TABLE music_dirs (dir text UNIQUE PRIMARY KEY)''')
+        c.execute('''CREATE TABLE to_index (path text UNIQUE PRIMARY KEY)''')
+        c.execute('''CREATE TABLE features (path text UNIQUE PRIMARY KEY, 
             tempo real, beats real, rms real, cent real,
             rolloff real, zcr real, low real, entropy real,
 
@@ -66,6 +71,7 @@ def index_unindexed(conn, shutdown_rx):
     unindexed = []
     for path in c.execute("SELECT * FROM to_index"):
         unindexed += path
+    numb_unindexed = len(unindexed)
 
     for path in unindexed:
         if shutdown_rx.poll():
@@ -73,12 +79,18 @@ def index_unindexed(conn, shutdown_rx):
 
         res = index_file(path) #if index succeeded, remove from db
         if res != None:
-            c.execute("DELETE FROM to_index WHERE path='"+path+"';")
+
+            q = "DELETE FROM to_index WHERE path = {};".format(quote_identifier(path))
+            c.execute(q)
+            
             q = ("INSERT OR IGNORE INTO features "
             + "(path, tempo, beats, rms, cent, rolloff, zcr, low, entropy) "
-            + "VALUES ('"+path+"',"+str(res)+")")
+            + "VALUES ({},{});".format(quote_identifier(path),res))
             c.execute(q)
-    conn.commit()
+
+        conn.commit()
+        numb_unindexed -= 1
+        print("indexing files in background, {} left".format(numb_unindexed))
 
 
 def index_file(path: str):
@@ -105,8 +117,24 @@ def finalise_index(conn):
         features = fe.Features(str_list=row)
         (energy, stress) = features.classify()
         
-        c.execute("UPDATE features SET stress= {0:f}, energy={1:f} WHERE path='{2}'".format(stress, energy, path))
+        q = "UPDATE features SET stress= {0:f}, energy={1:f} WHERE path='{2}'".format(stress, energy, quote_identifier(path))
+        c.execute(q)
     conn.commit()
+
+
+def quote_identifier(s, errors="strict"):
+    encodable = s.encode("utf-8", errors).decode("utf-8")
+
+    nul_index = encodable.find("\x00")
+
+    if nul_index >= 0:
+        error = UnicodeEncodeError("NUL-terminated utf-8", encodable,
+                                   nul_index, nul_index + 1, "NUL not allowed")
+        error_handler = codecs.lookup_error(errors)
+        replacement, _ = error_handler(error)
+        encodable = encodable.replace("\x00", replacement)
+
+    return "\"" + encodable.replace("\"", "\"\"") + "\""
 
 def finish_previous_indexing():
     conn = sqlite3.connect(db_path)

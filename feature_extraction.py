@@ -1,5 +1,6 @@
 import numpy as np
 import librosa
+import warnings
 
 class Features:
     tempo = 0 #tempo
@@ -86,7 +87,10 @@ def norm(var, varmin, varmax):
     return (var-varmin)/(varmax-varmin)
 
 def extract_features(path: str):
-    y, sr = librosa.load(path, duration=60)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        y, sr = librosa.load(path, duration=60)
 
     # Extracting Features
     tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
