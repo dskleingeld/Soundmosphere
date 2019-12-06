@@ -4,6 +4,7 @@ from text_analysis import analyseText
 import sqlite3
 from music_player import play, Order, OrderType
 
+import time
 import random
 import spacy
 nlp = spacy.load("data/en_core_web_sm")
@@ -36,28 +37,22 @@ def analyse(rx, playlist_changes):
         print(new_text)
 
         energy, stress = analyseText(recent_text)
-        print("energy: ", energy)
-        print(abs(energylast-energy))
-
-        for row in c.execute("SELECT * FROM features"):
-          print(row)
+        print("energy: ", energy, " stress:",stress)
 
         if (abs(energylast - energy) > MIN_ENG_DIFF or abs(stresslast - stress) > MIN_STRESS_DIFF):
-          q = "SELECT path FROM features ORDER BY ABS(energy+{})+ABS(stress+{}) ASC LIMIT {};".format(energy,stress,LIMIT)   
-          print(q)    
+          q = "SELECT path FROM features ORDER BY ABS(energy+{})+ABS(stress+{}) ASC LIMIT {};".format(energy,stress,LIMIT)  
           paths = list(c.execute(q))
           rand = int(random.random()*len(paths))
-          print(rand)
-          print(paths)
-          path = paths[rand]
-          if (pathlast != path):
-            order = Order()
-            order.path = path[0]
-            playlist_changes.put(order)
+          if paths:
+            path = paths[rand]
+            if (pathlast != path):
+              order = Order()
+              order.path = path[0]
+              playlist_changes.put(order)
 
-            energylast = energy
-            stresslast = stress
-            pathlast = path
+              energylast = energy
+              stresslast = stress
+              pathlast = path
           
           time.sleep(5)
 
