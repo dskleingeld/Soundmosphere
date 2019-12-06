@@ -12,7 +12,6 @@ def add_music_dir(dirpath: str):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     q = "INSERT OR IGNORE INTO music_dirs (dir) VALUES ({})".format(quote_identifier(dirpath))
-    print(q)
     c.execute(q)
     conn.commit()
     conn.close()
@@ -89,6 +88,8 @@ def index_unindexed(conn, shutdown_rx):
 
         numb_unindexed -= 1
         print("indexing files in background, {} left".format(numb_unindexed))
+        #TODO opt: reindex every 15 new numbers or so
+        #TODO opt: do indexing in parallel?
 
 
 def index_file(path: str):
