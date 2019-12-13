@@ -45,3 +45,6 @@ def noalsaerr():
     asound.snd_lib_error_set_handler(c_error_handler)
     yield
     asound.snd_lib_error_set_handler(None)
+
+def wait_for_enter():
+    input("Press Enter to quit...\n")

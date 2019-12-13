@@ -1,7 +1,5 @@
-#pyenchant==2.0.0 no longer needed
-spacy==2.2.3
-#pyglet==1.4.8
-#python-vlc==3.0.7110
+#spacy==2.2.3
 pydub==0.23.1
 librosa==0.7.1
 deepspeech==0.5.1
+pyqt5==5.13.2
