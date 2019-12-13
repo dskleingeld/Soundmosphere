@@ -1,18 +1,17 @@
-from queue import Queue as tQueue
-import threading
-from text_analysis import analyseText
-import sqlite3
-from music_player import play, Order, OrderType
-
 import time
 import random
-import spacy
-nlp = spacy.load("data/en_core_web_sm")
+import threading
+import sqlite3
+
+from queue import Queue as tQueue
+
+from text_analysis import analyseText
+from music_player import play, Order, OrderType
 
 MAX_RECENT_WORDS = 90
 MIN_ENG_DIFF = 0.1
 MIN_STRESS_DIFF = 0.1
-LIMIT = 3
+LIMIT = 10
 
 def analyse(rx, playlist_changes):
     t = threading.currentThread()
@@ -58,6 +57,10 @@ def analyse(rx, playlist_changes):
 
     print("stopped analysis")
 
+"""
+import spacy
+nlp = spacy.load("data/en_core_web_sm")
+
 def linguistic_analysis(recent_text):
     doc = nlp(recent_text)
 
@@ -94,3 +97,4 @@ if __name__ == '__main__':
 
 
     print("stopped analysis")
+"""

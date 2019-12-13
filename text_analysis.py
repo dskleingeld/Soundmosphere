@@ -1,13 +1,11 @@
-from keywords import keywords, energy, stress
+from keywords import keywords
 
 def matchKeyword(word):
   energyval = 0
   stressval = 0
-  print(word)
-  if word in keywords:
-    print("hi")
-    energyval = energy[keywords.index(word)]*0.05
-    stressval = stress[keywords.index(word)]*0.05
+  if word in keywords.keys():
+    energyval = keywords[word].energy *0.05
+    stressval = keywords[word].stress *0.05
 
   return energyval, stressval
 
