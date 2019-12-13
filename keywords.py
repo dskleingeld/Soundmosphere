@@ -1,5 +1,5 @@
 from collections import namedtuple
-Emotion = namedtuple("Emotion", "energy stress amplitude")
+Emotion = namedtuple("Emotion", "energy stress intensity")
 keywords = {
        "a cut above": Emotion(-1.0, -1.0, 1.0),
         "absolutely": Emotion(-1.0, -1.0, 1.0),

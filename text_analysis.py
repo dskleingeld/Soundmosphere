@@ -4,8 +4,9 @@ def matchKeyword(word):
   energyval = 0
   stressval = 0
   if word in keywords.keys():
-    energyval = keywords[word].energy *0.05
-    stressval = keywords[word].stress *0.05
+    emotion = keywords[word]
+    energyval = 0.05*emotion.energy * emotion.intensity
+    stressval = 0.05*emotion.stress * emotion.intensity
 
   return energyval, stressval
 
