@@ -15,12 +15,13 @@ def add_music_dir(dirpath: str):
     c.execute(q)
     conn.commit()
     conn.close()
+    print("added music dir {}".format(dirpath))
 
 def add_unindexed(conn):
     #load music dirs from database
     c = conn.cursor()
 
-    #for glob
+    counter = 0
     for dirpath in c.execute('SELECT dir FROM music_dirs'): #different file types still to be tested
         for filepath in util.iter_matching(dirpath[0], ".*\.(mp3|wav|ogg|aac|flac|opus|mp4)"):
             q = "SELECT EXISTS(SELECT 1 FROM features WHERE path = {});".format(quote_identifier(filepath))
@@ -29,7 +30,11 @@ def add_unindexed(conn):
             if res[0] == 0:
                 q = "INSERT OR IGNORE INTO to_index (path) VALUES ({})".format(quote_identifier(filepath))
                 c.execute(q)
+                counter+=1
     conn.commit()
+    
+    if (counter > 0):
+        print("added {} files to be indexed".format(counter))
 
 #must be ran before ANY threat touches the database
 def init_db():
@@ -51,19 +56,21 @@ def init_db():
 def keep_updated(new_path_rx, shutdown_rx):
     conn = sqlite3.connect(db_path)
 
+    add_unindexed(conn)
+    index_unindexed(conn, shutdown_rx)
+    finalise_index(conn) #TODO opt: dont do this every time
+
     while True:
+        if shutdown_rx.poll():
+            return
+        if not new_path_rx.poll(timeout=0.1):
+            continue
+
+        new_path = new_path_rx.recv()
+        add_music_dir(new_path)
         add_unindexed(conn)
         index_unindexed(conn, shutdown_rx)
-        finalise_index(conn) #TODO opt: dont do this every time
-
-        while True: 
-            if shutdown_rx.poll():
-                return
-            if not new_path_rx.poll(timeout=0.1):
-                continue
-
-            new_path = new_path_rx.recv()
-            add_music_dir(new_path)
+        finalise_index(conn) #TODO opt: do this only if bounds change
 
 def index_unindexed(conn, shutdown_rx):
     c = conn.cursor()
@@ -72,9 +79,13 @@ def index_unindexed(conn, shutdown_rx):
         unindexed += path
     numb_unindexed = len(unindexed)
 
+    counter = 0
     for path in unindexed:
         if shutdown_rx.poll():
             return #stop if we need to quit
+        if counter == 10:
+            counter = 0
+            finalise_index(conn)
 
         res = index_file(path) #if index succeeded, remove from db
         q = "DELETE FROM to_index WHERE path = {};".format(quote_identifier(path))
@@ -88,7 +99,6 @@ def index_unindexed(conn, shutdown_rx):
 
         numb_unindexed -= 1
         print("indexing files in background, {} left".format(numb_unindexed))
-        #TODO opt: reindex every 15 new numbers or so
         #TODO opt: do indexing in parallel?
 
 
@@ -130,6 +140,7 @@ def finalise_index(conn):
         q = "UPDATE features SET stress= {0:f}, energy={1:f} WHERE path={2}".format(stress, energy, quote_identifier(path))
         c.execute(q)
     conn.commit()
+    print("added new songs and reclassified database using features from new songs")
 
 
 def quote_identifier(s, errors="strict"):
